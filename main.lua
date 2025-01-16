@@ -1,17 +1,17 @@
+require "globals" -- we now require a globals file
+
 local love = require "love"
 
 local Player = require "objects/Player"
 local Game = require "states/Game"
 
-math.randomseed(os.time()) -- randomize game!
+math.randomseed(os.time())
 
 function love.load()
     love.mouse.setVisible(false)
     mouse_x, mouse_y = 0, 0
-
-    local show_debugging = true
     
-    player = Player(show_debugging)
+    player = Player() -- removed show_debugging
     game = Game()
     game:startNewGame(player)
 end
@@ -23,7 +23,6 @@ function love.keypressed(key)
             player.thrusting = true
         end
 
-        -- we now have key presses to shoot lazers
         if key == "space" or key == "down" or key == "kp5" then
             player:shootLazer()
         end
@@ -44,7 +43,6 @@ function love.keyreleased(key)
     end
 end
 
--- mouse pressed if the player wants to shoot the lazer with mouse
 function love.mousepressed(x, y, button, istouch, presses)
     if button == 1 then
         if game.state.running then
@@ -60,8 +58,15 @@ function love.update(dt)
     if game.state.running then
         player:movePlayer()
 
-        -- we now move the asteroid
         for ast_index, asteroid in pairs(asteroids) do
+            -- we new check to see for lazer collision detection
+            for _, lazer in pairs(player.lazers) do
+                if calculateDistance(lazer.x, lazer.y, asteroid.x, asteroid.y) < asteroid.radius then
+                    lazer:expload() -- delete lazer
+                    asteroid:destroy(asteroids, ast_index, game)
+                end
+            end
+
             asteroid:move(dt)
         end
     end
@@ -69,10 +74,8 @@ end
 
 function love.draw()
     if game.state.running or game.state.paused then
-        -- below the player gets dimmer once we pause
         player:draw(game.state.paused)
 
-        -- we now draw all the asteroids
         for _, asteroid in pairs(asteroids) do
             asteroid:draw(game.state.paused)
         end
