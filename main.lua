@@ -59,12 +59,27 @@ function love.update(dt)
         player:movePlayer()
 
         for ast_index, asteroid in pairs(asteroids) do
-            -- we new check to see for lazer collision detection
+            -- if the player is not exploading
+            if not player.exploading then
+                if calculateDistance(player.x, player.y, asteroid.x, asteroid.y) < player.radius + asteroid.radius then
+                    -- check if ship and asteroid colided
+                    player:expload()
+                    destroy_ast = true
+                end
+            else
+                player.expload_time = player.expload_time - 1
+            end
+
             for _, lazer in pairs(player.lazers) do
                 if calculateDistance(lazer.x, lazer.y, asteroid.x, asteroid.y) < asteroid.radius then
                     lazer:expload() -- delete lazer
                     asteroid:destroy(asteroids, ast_index, game)
                 end
+            end
+
+            if destroy_ast then
+                destroy_ast = false
+                asteroid:destroy(asteroids, ast_index, game) -- delete asteroid and split into more asteroids
             end
 
             asteroid:move(dt)
