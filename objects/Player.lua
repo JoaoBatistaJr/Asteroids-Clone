@@ -1,12 +1,12 @@
-require "globals" -- we now require globals
+require "globals"
 
 local love = require "love"
 
 local Lazer = require "objects/Lazer"
 
-function Player()
+function Player(num_lives) -- now takes in number of player lives
     local SHIP_SIZE = 30
-    local EXPLOAD_DUR = 3 -- how long the ship will expload (in seconds)
+    local EXPLOAD_DUR = 3
     local VIEW_ANGLE = math.rad(90)
     local LAZER_DISTANCE = 0.6
     local MAX_LAZERS = 10
@@ -17,8 +17,8 @@ function Player()
         radius = SHIP_SIZE / 2,
         angle = VIEW_ANGLE,
         rotation = 0,
-        expload_time = 0, -- if the ship crashed
-        exploading = false, -- if ship exploading
+        expload_time = 0,
+        exploading = false,
         thrusting = false,
         lazers = {},
         thrust = {
@@ -28,6 +28,7 @@ function Player()
             big_flame = false,
             flame = 2.0
         },
+        lives = num_lives or 3, -- we now set player lives
 
         draw_flame_thrust = function (self, fillType, color)
             love.graphics.setColor(color)
@@ -77,7 +78,7 @@ function Player()
                 self.y + self.radius * (2 / 3 * math.sin(self.angle) + math.cos(self.angle))
             )
 
-            if not self.exploading then -- if the ship is not exploading
+            if not self.exploading then
                 if self.thrusting then
                     if not self.thrust.big_flame then
                         self.thrust.flame = self.thrust.flame - 1 / love.timer.getFPS()
@@ -93,23 +94,22 @@ function Player()
                         end
                     end
 
-                    self:draw_flame_thrust("fill", {255/255 ,102/255 ,25/255}) -- draw flame thrust
-                    self:draw_flame_thrust("line", {1, 0.16, 0}) -- flame thrust outline
+                    self:draw_flame_thrust("fill", {255/255 ,102/255 ,25/255})
+                    self:draw_flame_thrust("line", {1, 0.16, 0})
                 end
                 
                 if show_debugging then
                     love.graphics.setColor(1, 0, 0)
     
-                    love.graphics.rectangle( "fill", self.x - 1, self.y - 1, 2, 2 ) -- shows center of triangle
+                    love.graphics.rectangle( "fill", self.x - 1, self.y - 1, 2, 2 )
                     
-                    love.graphics.circle("line", self.x, self.y, self.radius) -- the hitbox of the ship
+                    love.graphics.circle("line", self.x, self.y, self.radius)
                 end
 
                 love.graphics.setColor(1, 1, 1, opacity)
 
                 love.graphics.polygon(
-                    "line", -- ship
-                    -- the 4 / 3 and 2 / 3 is to find the center of the triangle correctly
+                    "line",
                     self.x + ((4 / 3) * self.radius) * math.cos(self.angle),
                     self.y -  ((4 / 3) * self.radius) * math.sin(self.angle),
                     self.x - self.radius * (2 / 3 * math.cos(self.angle) + math.sin(self.angle)),
@@ -118,11 +118,10 @@ function Player()
                     self.y + self.radius * (2 / 3 * math.sin(self.angle) + math.cos(self.angle))
                 )
 
-                -- draw lazers
                 for _, lazer in pairs(self.lazers) do
                     lazer:draw(faded)
                 end
-            else -- if the ship exploaded
+            else
                 love.graphics.setColor(1, 0, 0)
                 love.graphics.circle("fill", self.x, self.y, self.radius * 1.5)
 
@@ -134,10 +133,47 @@ function Player()
             end
         end,
 
+        -- we draw player lives on screen
+        drawLives = function (self, faded)
+            local opacity = 1
+
+            if faded then
+                opacity = 0.2
+            end
+
+            if self.lives == 2 then
+                love.graphics.setColor(1, 1, 0.5, opacity)
+            elseif self.lives == 1 then
+                love.graphics.setColor(1, 0.2, 0.2, opacity)
+            else
+                love.graphics.setColor(1, 1, 1, opacity)
+            end
+            
+            local x_pos, y_pos = 45, 30
+            for i = 1, self.lives do
+                if self.exploading then
+                    if i == self.lives then
+                        love.graphics.setColor(1, 0, 0, opacity)
+                    end
+                end
+
+                love.graphics.polygon(
+                    "line", -- ship
+                    -- the 4 / 3 and 2 / 3 is to find the center of the triangle correctly
+                    (i * x_pos) + ((4 / 3) * self.radius) * math.cos(VIEW_ANGLE), -- x location
+                    y_pos -  ((4 / 3) * self.radius) * math.sin(VIEW_ANGLE), -- y location
+                    (i * x_pos) - self.radius * (2 / 3 * math.cos(VIEW_ANGLE) + math.sin(VIEW_ANGLE)),
+                    y_pos + self.radius * (2 / 3 * math.sin(VIEW_ANGLE) - math.cos(VIEW_ANGLE)),
+                    (i * x_pos) - self.radius * (2 / 3 * math.cos(VIEW_ANGLE) - math.sin(VIEW_ANGLE)),
+                    y_pos + self.radius * (2 / 3 * math.sin(VIEW_ANGLE) + math.cos(VIEW_ANGLE))
+                )
+            end
+        end,
+
         movePlayer = function (self)
             self.exploading = self.expload_time > 0
 
-            if not self.exploading then -- if not exploading
+            if not self.exploading then
                 local FPS = love.timer.getFPS()
                 local friction = 0.7
 

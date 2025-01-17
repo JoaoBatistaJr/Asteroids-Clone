@@ -1,4 +1,4 @@
-require "globals" -- we now require a globals file
+require "globals"
 
 local love = require "love"
 
@@ -11,7 +11,7 @@ function love.load()
     love.mouse.setVisible(false)
     mouse_x, mouse_y = 0, 0
     
-    player = Player() -- removed show_debugging
+    player = Player()
     game = Game()
     game:startNewGame(player)
 end
@@ -59,27 +59,42 @@ function love.update(dt)
         player:movePlayer()
 
         for ast_index, asteroid in pairs(asteroids) do
-            -- if the player is not exploading
             if not player.exploading then
                 if calculateDistance(player.x, player.y, asteroid.x, asteroid.y) < player.radius + asteroid.radius then
-                    -- check if ship and asteroid colided
                     player:expload()
                     destroy_ast = true
                 end
             else
                 player.expload_time = player.expload_time - 1
+    
+                -- we now cover what happens to player when they lose a life
+                if player.expload_time == 0 then
+                    if player.lives - 1 <= 0 then
+                        game:changeGameState("ended")
+                        return
+                    end
+                    player = Player(player.lives - 1)
+                end
             end
 
             for _, lazer in pairs(player.lazers) do
                 if calculateDistance(lazer.x, lazer.y, asteroid.x, asteroid.y) < asteroid.radius then
-                    lazer:expload() -- delete lazer
+                    lazer:expload()
                     asteroid:destroy(asteroids, ast_index, game)
                 end
             end
 
             if destroy_ast then
-                destroy_ast = false
-                asteroid:destroy(asteroids, ast_index, game) -- delete asteroid and split into more asteroids
+                if player.lives - 1 <= 0 then -- check if the player lives are less or = to 0
+                    if player.expload_time == 0 then -- if expload time is up
+                        -- wait for player to finish exploading before destroying any asteroids
+                        destroy_ast = false
+                        asteroid:destroy(asteroids, ast_index, game) -- delete asteroid and split into more asteroids
+                    end
+                else
+                    destroy_ast = false
+                    asteroid:destroy(asteroids, ast_index, game)
+                end
             end
 
             asteroid:move(dt)
@@ -89,6 +104,7 @@ end
 
 function love.draw()
     if game.state.running or game.state.paused then
+        player:drawLives(game.state.paused) -- draw player lives to screen
         player:draw(game.state.paused)
 
         for _, asteroid in pairs(asteroids) do
