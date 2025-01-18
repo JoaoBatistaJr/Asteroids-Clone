@@ -4,6 +4,7 @@ local love = require "love"
 
 local Player = require "objects/Player"
 local Game = require "states/Game"
+local Menu = require "states/Menu" -- we now import menu
 
 math.randomseed(os.time())
 
@@ -13,7 +14,7 @@ function love.load()
     
     player = Player()
     game = Game()
-    game:startNewGame(player)
+    menu = Menu(game, player) -- we now create a menu object
 end
 
 -- KEYBINDINGS --
@@ -47,6 +48,8 @@ function love.mousepressed(x, y, button, istouch, presses)
     if button == 1 then
         if game.state.running then
             player:shootLazer()
+        else
+            clickedMouse = true -- set if mouse is clicked
         end
     end
 end
@@ -67,7 +70,6 @@ function love.update(dt)
             else
                 player.expload_time = player.expload_time - 1
     
-                -- we now cover what happens to player when they lose a life
                 if player.expload_time == 0 then
                     if player.lives - 1 <= 0 then
                         game:changeGameState("ended")
@@ -85,11 +87,10 @@ function love.update(dt)
             end
 
             if destroy_ast then
-                if player.lives - 1 <= 0 then -- check if the player lives are less or = to 0
-                    if player.expload_time == 0 then -- if expload time is up
-                        -- wait for player to finish exploading before destroying any asteroids
+                if player.lives - 1 <= 0 then
+                    if player.expload_time == 0 then
                         destroy_ast = false
-                        asteroid:destroy(asteroids, ast_index, game) -- delete asteroid and split into more asteroids
+                        asteroid:destroy(asteroids, ast_index, game)
                     end
                 else
                     destroy_ast = false
@@ -99,6 +100,9 @@ function love.update(dt)
 
             asteroid:move(dt)
         end
+    elseif game.state.menu then -- check if in menu state
+        menu:run(clickedMouse) -- run the menu
+        clickedMouse = false -- set mouse cicked
     end
 end
 
@@ -112,10 +116,16 @@ function love.draw()
         end
 
         game:draw(game.state.paused)
+    elseif game.state.menu then -- draw menu if in menu state
+        menu:draw()
     end
 
 
     love.graphics.setColor(1, 1, 1, 1)
+    
+    if not game.state.running then -- draw cursor if not in running state
+        love.graphics.circle("fill", mouse_x, mouse_y, 10)
+    end
 
     love.graphics.print(love.timer.getFPS(), 10, 10)
 end

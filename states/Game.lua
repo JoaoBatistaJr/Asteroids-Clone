@@ -7,9 +7,9 @@ function Game()
     return {
         level = 1,
         state = {
-            menu = false,
+            menu = true, -- set to menu state by default
             paused = false,
-            running = true,
+            running = false,
             ended = false
         },
 
@@ -36,13 +36,11 @@ function Game()
             end
         end,
 
-        -- this new function will allow us to start a new game when requested
         startNewGame = function (self, player)
             self:changeGameState("running")
         
             asteroids = {}
         
-            -- asteroid x and y
             local as_x = math.floor(math.random(love.graphics.getWidth()))
             local as_y = math.floor(math.random(love.graphics.getHeight()))
     
