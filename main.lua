@@ -5,18 +5,35 @@ local love = require "love"
 local Player = require "objects/Player"
 local Game = require "states/Game"
 local Menu = require "states/Menu"
+local resetComplete = false -- if game needs to be reset
+local SFX = require "components/SFX"
 
 math.randomseed(os.time())
 
+local function reset()
+    local save_data = readJSON("save")
+
+    -- create the soundeffects
+    sfx = SFX()
+    
+    -- added sfx here and into below objects
+    player = Player(3, sfx)
+    game = Game(save_data, sfx)
+    menu = Menu(game, player, sfx)
+
+    destroy_ast = false
+end
+
 function love.load()
     love.mouse.setVisible(false)
-    local save_data = readJSON("save") -- get saved data
 
     mouse_x, mouse_y = 0, 0
-    
-    player = Player(3) -- pass in num lives
-    game = Game(save_data) -- we now pass in save data into game
-    menu = Menu(game, player)
+
+    reset() -- reset now takes in sfx
+
+    -- will play bgm, does not have to be inside reset(), since
+    -- it doesn't have to restart or anything when game over
+    sfx.playBGM()
 end
 
 -- KEYBINDINGS --
@@ -61,10 +78,10 @@ function love.update(dt)
     mouse_x, mouse_y = love.mouse.getPosition()
 
     if game.state.running then
-        player:movePlayer()
+        player:movePlayer(dt)
 
         for ast_index, asteroid in pairs(asteroids) do
-            if not player.exploading then
+            if not player.exploading and not player.invincible then
                 if calculateDistance(player.x, player.y, asteroid.x, asteroid.y) < player.radius + asteroid.radius then
                     player:expload()
                     destroy_ast = true
@@ -77,7 +94,9 @@ function love.update(dt)
                         game:changeGameState("ended")
                         return
                     end
-                    player = Player(player.lives - 1)
+
+                    -- add sfx to this player as well
+                    player = Player(player.lives - 1, sfx)
                 end
             end
 
@@ -102,9 +121,23 @@ function love.update(dt)
 
             asteroid:move(dt)
         end
+
+        if #asteroids == 0 then
+            game.level = game.level + 1
+            game:startNewGame(player)
+        end
     elseif game.state.menu then
         menu:run(clickedMouse)
         clickedMouse = false
+
+        -- this will reset everything to original state
+        if not resetComplete then
+            reset()
+            resetComplete = true
+        end
+    elseif game.state.ended then
+        -- we should reset the game
+        resetComplete = false
     end
 end
 
@@ -120,6 +153,8 @@ function love.draw()
         game:draw(game.state.paused)
     elseif game.state.menu then
         menu:draw()
+    elseif game.state.ended then
+        game:draw()
     end
 
 

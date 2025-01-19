@@ -19,10 +19,28 @@ end
         example: "save"
         description: Will search for 'data/save.json'
  ]]
- function readJSON(file_name) -- added a method to read json
+ function readJSON(file_name)
     local file = io.open("src/data/" .. file_name .. ".json", "r")
     local data = file:read("*all")
     file:close()
 
     return lunajson.decode(data)
+end
+
+--[[ 
+    DESCRIPTION
+    Convert a table to JSON and save it in a file. This will overwrite the file if it already exists. This function will automatically search inside the data/ folder and add a '.json' to the file name.
+
+    PARAMETERS
+    -> file_name: string - name of file to write to (required)
+        example: "save"
+        NB: Will search for 'data/save.json'
+    -> data: table - table to be converted to JSON and saved. (required)
+        example: { name = "max" }
+ ]]
+ function writeJSON(file_name, data)  -- added a method to write json
+    print(lunajson.encode(data))
+    local file = io.open("src/data/" .. file_name .. ".json", "w")
+    file:write(lunajson.encode(data))
+    file:close()
 end

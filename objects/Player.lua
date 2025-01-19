@@ -4,12 +4,13 @@ local love = require "love"
 
 local Lazer = require "objects/Lazer"
 
-function Player(num_lives) -- now takes in number of player lives
+function Player(num_lives, sfx)
     local SHIP_SIZE = 30
     local EXPLOAD_DUR = 3
     local VIEW_ANGLE = math.rad(90)
     local LAZER_DISTANCE = 0.6
     local MAX_LAZERS = 10
+    local USABLE_BLINKS = 10 * 2
 
     return {
         x = love.graphics.getWidth() / 2,
@@ -20,6 +21,9 @@ function Player(num_lives) -- now takes in number of player lives
         expload_time = 0,
         exploading = false,
         thrusting = false,
+        invincible = true,
+        invincible_seen = true,
+        time_blinked = USABLE_BLINKS,
         lazers = {},
         thrust = {
             x = 0,
@@ -28,9 +32,13 @@ function Player(num_lives) -- now takes in number of player lives
             big_flame = false,
             flame = 2.0
         },
-        lives = num_lives or 3, -- we now set player lives
+        lives = num_lives or 3,
 
         draw_flame_thrust = function (self, fillType, color)
+            if self.invincible_seen then
+                table.insert(color, 0.5)
+            end
+            
             love.graphics.setColor(color)
 
             love.graphics.polygon(
@@ -46,12 +54,14 @@ function Player(num_lives) -- now takes in number of player lives
 
         shootLazer = function (self)
             if (#self.lazers <= MAX_LAZERS) then
-                -- lazer spawn from front of ship
                 table.insert(self.lazers, Lazer(
                     self.x + ((4 / 3) * self.radius) * math.cos(self.angle),
                     self.y -  ((4 / 3) * self.radius) * math.sin(self.angle),
                     self.angle
                 ))
+
+                -- add laser sfx
+                sfx:playFX("laser")
             end
         end,
 
@@ -65,18 +75,6 @@ function Player(num_lives) -- now takes in number of player lives
             if faded then
                 opacity = 0.2
             end
-
-            love.graphics.setColor(1, 1, 1, opacity)
-
-            love.graphics.polygon(
-                "line",
-                self.x + ((4 / 3) * self.radius) * math.cos(self.angle),
-                self.y -  ((4 / 3) * self.radius) * math.sin(self.angle),
-                self.x - self.radius * (2 / 3 * math.cos(self.angle) + math.sin(self.angle)),
-                self.y + self.radius * (2 / 3 * math.sin(self.angle) - math.cos(self.angle)),
-                self.x - self.radius * (2 / 3 * math.cos(self.angle) - math.sin(self.angle)),
-                self.y + self.radius * (2 / 3 * math.sin(self.angle) + math.cos(self.angle))
-            )
 
             if not self.exploading then
                 if self.thrusting then
@@ -106,7 +104,12 @@ function Player(num_lives) -- now takes in number of player lives
                     love.graphics.circle("line", self.x, self.y, self.radius)
                 end
 
-                love.graphics.setColor(1, 1, 1, opacity)
+                -- change opacity depending if player is invisible_seen
+                if self.invincible_seen then
+                    love.graphics.setColor(1, 1, 1, faded and opacity or 0.5)
+                else
+                    love.graphics.setColor(1, 1, 1, opacity)
+                end
 
                 love.graphics.polygon(
                     "line",
@@ -133,7 +136,6 @@ function Player(num_lives) -- now takes in number of player lives
             end
         end,
 
-        -- we draw player lives on screen
         drawLives = function (self, faded)
             local opacity = 1
 
@@ -158,10 +160,9 @@ function Player(num_lives) -- now takes in number of player lives
                 end
 
                 love.graphics.polygon(
-                    "line", -- ship
-                    -- the 4 / 3 and 2 / 3 is to find the center of the triangle correctly
-                    (i * x_pos) + ((4 / 3) * self.radius) * math.cos(VIEW_ANGLE), -- x location
-                    y_pos -  ((4 / 3) * self.radius) * math.sin(VIEW_ANGLE), -- y location
+                    "line",
+                    (i * x_pos) + ((4 / 3) * self.radius) * math.cos(VIEW_ANGLE),
+                    y_pos -  ((4 / 3) * self.radius) * math.sin(VIEW_ANGLE),
                     (i * x_pos) - self.radius * (2 / 3 * math.cos(VIEW_ANGLE) + math.sin(VIEW_ANGLE)),
                     y_pos + self.radius * (2 / 3 * math.sin(VIEW_ANGLE) - math.cos(VIEW_ANGLE)),
                     (i * x_pos) - self.radius * (2 / 3 * math.cos(VIEW_ANGLE) - math.sin(VIEW_ANGLE)),
@@ -170,7 +171,25 @@ function Player(num_lives) -- now takes in number of player lives
             end
         end,
 
-        movePlayer = function (self)
+        movePlayer = function (self, dt)
+            if self.invincible then
+                self.time_blinked = self.time_blinked - dt * 2
+
+                if math.ceil(self.time_blinked) % 2 == 0 then
+                    self.invincible_seen = false
+                else
+                    self.invincible_seen = true
+                end
+
+                if self.time_blinked <= 0 then
+                    self.invincible = false
+                end
+            else
+                self.time_blinked = USABLE_BLINKS
+                self.invincible_seen = false
+            end
+
+
             self.exploading = self.expload_time > 0
 
             if not self.exploading then
@@ -190,7 +209,13 @@ function Player(num_lives) -- now takes in number of player lives
                 if self.thrusting then
                     self.thrust.x = self.thrust.x + self.thrust.speed * math.cos(self.angle) / FPS
                     self.thrust.y = self.thrust.y - self.thrust.speed * math.sin(self.angle) / FPS
+
+                    -- play thruster sound
+                    sfx:playFX("thruster", "slow")
                 else
+                    -- stop thruster from playing
+                    sfx:stopFX("thruster")
+
                     if self.thrust.x ~= 0 or self.thrust.y ~= 0 then
                         self.thrust.x = self.thrust.x - friction * self.thrust.x / FPS
                         self.thrust.y = self.thrust.y - friction * self.thrust.y / FPS
@@ -226,7 +251,9 @@ function Player(num_lives) -- now takes in number of player lives
             end
         end,
 
-        expload = function (self) -- player can now expload
+        expload = function (self)
+            -- play ship exploasion music
+            sfx:playFX("ship_explosion")
             self.expload_time = math.ceil(EXPLOAD_DUR * love.timer.getFPS())
         end
     }

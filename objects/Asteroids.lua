@@ -1,8 +1,9 @@
-require "globals" -- we now require globals
+require "globals"
 
 local love = require "love"
 
-function Asteroids(x, y, ast_size, level)
+-- asteroids require sfx
+function Asteroids(x, y, ast_size, level, sfx)
     local ASTEROID_VERT = 10
     local ASTEROID_JAG = 0.4
     local ASTEROID_SPEED = math.random(50) + (level * 2)
@@ -77,23 +78,26 @@ function Asteroids(x, y, ast_size, level)
             local MIN_ASTEROID_SIZE = math.ceil(ASTEROID_SIZE / 8)
         
             if self.radius > MIN_ASTEROID_SIZE then
-                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
-                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
+                -- pass in sfx to asteroids
+                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level, sfx))
+                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level, sfx))
             end
         
-            if self.radius >= ASTEROID_SIZE / 2 then -- large asteroid
-                game.score = game.score + 20 -- add small score
-            elseif self.radius <= MIN_ASTEROID_SIZE then -- small asteroid
-                game.score = game.score + 100 -- add large score
-            else -- medium asteroid
-                game.score = game.score + 50 -- add meh score
+            if self.radius >= ASTEROID_SIZE / 2 then
+                game.score = game.score + 20
+            elseif self.radius <= MIN_ASTEROID_SIZE then
+                game.score = game.score + 100
+            else
+                game.score = game.score + 50
             end
 
-            if game.score > game.high_score then -- change high score if score is higher than it
+            if game.score > game.high_score then
                 game.high_score = game.score
             end
         
-            table.remove(asteroids_tbl, index) -- remove ourself
+            -- play asteroid destroy sfx
+            sfx:playFX("asteroid_explosion")
+            table.remove(asteroids_tbl, index)
         end
     }
 end
