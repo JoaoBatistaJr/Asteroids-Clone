@@ -2,7 +2,7 @@ require "globals" -- we now require globals
 
 local love = require "love"
 
-function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it's global now
+function Asteroids(x, y, ast_size, level)
     local ASTEROID_VERT = 10
     local ASTEROID_JAG = 0.4
     local ASTEROID_SPEED = math.random(50) + (level * 2)
@@ -49,7 +49,7 @@ function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it
                 points
             )
 
-            if show_debugging then -- changed to global show_debugging
+            if show_debugging then
                 love.graphics.setColor(1, 0, 0)
                 
                 love.graphics.circle("line", self.x, self.y, self.radius)
@@ -73,15 +73,24 @@ function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it
             end
         end,
 
-        -- so asteroids can be destoryed
         destroy = function (self, asteroids_tbl, index, game)
             local MIN_ASTEROID_SIZE = math.ceil(ASTEROID_SIZE / 8)
         
-            -- split asteroid if it's still bigger than the min size
             if self.radius > MIN_ASTEROID_SIZE then
-                -- size will automatically half, since radius is / 2 when converted to new radius
                 table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
                 table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
+            end
+        
+            if self.radius >= ASTEROID_SIZE / 2 then -- large asteroid
+                game.score = game.score + 20 -- add small score
+            elseif self.radius <= MIN_ASTEROID_SIZE then -- small asteroid
+                game.score = game.score + 100 -- add large score
+            else -- medium asteroid
+                game.score = game.score + 50 -- add meh score
+            end
+
+            if game.score > game.high_score then -- change high score if score is higher than it
+                game.high_score = game.score
             end
         
             table.remove(asteroids_tbl, index) -- remove ourself
