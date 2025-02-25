@@ -1,14 +1,14 @@
+require "globals" -- we now require globals
+
 local love = require "love"
 
 local Lazer = require "objects/Lazer" -- since we'll be using lazers
 
-function Player(debugging)
+function Player()
     local SHIP_SIZE = 30
     local VIEW_ANGLE = math.rad(90)
-    local LAZER_DISTANCE = 0.6 -- distance lazers can go before dissapearing (0.6 of screen width in this case)
-    local MAX_LAZERS = 10 -- max amount of lazers on screen
-
-    debugging = debugging or false
+    local LAZER_DISTANCE = 0.6
+    local MAX_LAZERS = 10
 
     return {
         x = love.graphics.getWidth() / 2,
@@ -17,7 +17,7 @@ function Player(debugging)
         angle = VIEW_ANGLE,
         rotation = 0,
         thrusting = false,
-        lazers = {}, -- lazers x, y, x_velocity, y_velocity data
+        lazers = {},
         thrust = {
             x = 0,
             y = 0,
@@ -40,9 +40,6 @@ function Player(debugging)
             )
         end,
 
-        -- this function will allow us to shoot lazers
-        -- these functions can be in lazer as well, although
-        -- it can be easier to use inside player
         shootLazer = function (self)
             if (#self.lazers <= MAX_LAZERS) then
                 -- lazer spawn from front of ship
@@ -54,16 +51,15 @@ function Player(debugging)
             end
         end,
 
-        -- remove lazer from game
         destroyLazer = function (self, index)
             table.remove(self.lazers, index)
         end,
 
-        draw = function (self, faded) -- we now take in faded
+        draw = function (self, faded)
             local opacity = 1
             
-            if faded then -- if faded
-                opacity = 0.2 -- decrease opacity
+            if faded then
+                opacity = 0.2
             end
 
             if self.thrusting then
@@ -85,7 +81,7 @@ function Player(debugging)
                 self:draw_flame_thrust("line", {1, 0.16, 0})
             end
             
-            if debugging then
+            if show_debugging then  -- changed to global show_debugging
                 love.graphics.setColor(1, 0, 0)
 
                 love.graphics.rectangle( "fill", self.x - 1, self.y - 1, 2, 2 )
@@ -113,7 +109,7 @@ function Player(debugging)
 
         movePlayer = function (self)
             local FPS = love.timer.getFPS()
-            local friction = 0.7 -- 0 = no friction
+            local friction = 0.7
 
             self.rotation = 360 / 180 * math.pi / FPS
 
@@ -150,11 +146,14 @@ function Player(debugging)
                 self.y = -self.radius
             end
 
-            -- this will move the lazer
             for index, lazer in pairs(self.lazers) do
-                lazer:move()
-
-                if (lazer.distance > LAZER_DISTANCE * love.graphics.getWidth()) then
+                if (lazer.distance > LAZER_DISTANCE * love.graphics.getWidth()) and (lazer.exploading == 0) then -- we now include if lazer exploading == 0
+                    lazer:expload()-- we now instead expload the lazer
+                end
+                
+                if lazer.exploading == 0 then -- 0 -> lazer not exploading
+                    lazer:move()
+                elseif lazer.exploading == 2 then -- 2 -> lazer is done exploading
                     self.destroyLazer(self, index)
                 end
             end
