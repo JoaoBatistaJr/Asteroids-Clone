@@ -1,3 +1,3 @@
 {
-  "Lua.diagnostics.globals": ["self"]
+  "Lua.diagnostics.globals": ["self", "destroy_ast"]
 }
