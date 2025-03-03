@@ -1,8 +1,9 @@
-require "globals" -- we now require globals
+require "globals"
 
 local love = require "love"
 
-function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it's global now
+-- asteroids require sfx
+function Asteroids(x, y, ast_size, level, sfx)
     local ASTEROID_VERT = 10
     local ASTEROID_JAG = 0.4
     local ASTEROID_SPEED = math.random(50) + (level * 2)
@@ -49,7 +50,7 @@ function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it
                 points
             )
 
-            if show_debugging then -- changed to global show_debugging
+            if show_debugging then
                 love.graphics.setColor(1, 0, 0)
                 
                 love.graphics.circle("line", self.x, self.y, self.radius)
@@ -73,18 +74,30 @@ function Asteroids(x, y, ast_size, level) -- we removed show_debugging, since it
             end
         end,
 
-        -- so asteroids can be destoryed
         destroy = function (self, asteroids_tbl, index, game)
             local MIN_ASTEROID_SIZE = math.ceil(ASTEROID_SIZE / 8)
         
-            -- split asteroid if it's still bigger than the min size
             if self.radius > MIN_ASTEROID_SIZE then
-                -- size will automatically half, since radius is / 2 when converted to new radius
-                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
-                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level))
+                -- pass in sfx to asteroids
+                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level, sfx))
+                table.insert(asteroids_tbl,  Asteroids(self.x, self.y, self.radius, game.level, sfx))
             end
         
-            table.remove(asteroids_tbl, index) -- remove ourself
+            if self.radius >= ASTEROID_SIZE / 2 then
+                game.score = game.score + 20
+            elseif self.radius <= MIN_ASTEROID_SIZE then
+                game.score = game.score + 100
+            else
+                game.score = game.score + 50
+            end
+
+            if game.score > game.high_score then
+                game.high_score = game.score
+            end
+        
+            -- play asteroid destroy sfx
+            sfx:playFX("asteroid_explosion")
+            table.remove(asteroids_tbl, index)
         end
     }
 end
